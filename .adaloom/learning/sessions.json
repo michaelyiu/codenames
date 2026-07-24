@@ -1,0 +1,20 @@
+[
+  {
+    "sessionID": "ses_157035cacffeIJv3PT4CRb93wH",
+    "timestamp": 1780951644962,
+    "toolExecutions": 30,
+    "toolErrors": 0,
+    "errorCorrections": 0,
+    "observedErrorRate": 0,
+    "predictedErrorRate": 0.4
+  },
+  {
+    "sessionID": "ses_15703721effeMQI01NVc360roD",
+    "timestamp": 1780951662963,
+    "toolExecutions": 1,
+    "toolErrors": 0,
+    "errorCorrections": 0,
+    "observedErrorRate": 0,
+    "predictedErrorRate": 0.3825
+  }
+]
