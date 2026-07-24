@@ -31,6 +31,8 @@ jobs:
       - name: Build
         run: npm run build
         working-directory: client
+        env:
+          VITE_SERVER_URL: https://codenames-server-27xe.onrender.com
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
