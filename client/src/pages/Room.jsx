@@ -78,6 +78,20 @@ export default function Room() {
             Leave
           </button>
         )}
+        {state.phase === "playing" && (
+          <button
+            onClick={() => {
+              if (
+                window.confirm("Leave the game? You won't be able to rejoin.")
+              ) {
+                socket.emit("room:leave");
+                nav("/");
+              }
+            }}
+          >
+            Leave
+          </button>
+        )}
       </div>
 
       {state.phase === "lobby" ? (

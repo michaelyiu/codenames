@@ -59,7 +59,12 @@ export default function Game({ state }) {
   function submitClue(e) {
     e.preventDefault();
     setError("");
-    socket.emit("clue:give", { word: clueWord, count: clueCount }, (res) => {
+    const trimmed = clueWord.trim();
+    if (!trimmed) return setError("Clue word required");
+    if (!/^[a-zA-Z]+$/.test(trimmed)) {
+      return setError("Clue must be a single word, letters only");
+    }
+    socket.emit("clue:give", { word: trimmed, count: clueCount }, (res) => {
       if (res?.error) return setError(res.error);
       setClueWord("");
       setClueCount(1);

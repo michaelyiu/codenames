@@ -172,7 +172,6 @@ io.on("connection", (socket) => {
   socket.on("room:leave", () => {
     const { room, playerId: pid } = ctx(socket);
     if (!room || !pid) return;
-    if (room.phase === "playing") return; // can't leave mid-game
     removePlayer(room, pid);
     unbindSocket(socket.id);
     socket.leave(room.code);

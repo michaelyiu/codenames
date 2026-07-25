@@ -219,8 +219,11 @@ export function giveClue(room, playerId, word, count) {
   const clean = String(word || "")
     .trim()
     .slice(0, 30);
-  const n = Math.max(0, Math.min(9, parseInt(count, 10) || 0));
   if (!clean) return { error: "Clue word required" };
+  if (!/^[a-zA-Z]+$/.test(clean)) {
+    return { error: "Clue must be a single word, letters only" };
+  }
+  const n = Math.max(0, Math.min(9, parseInt(count, 10) || 0));
   room.game.clue = { word: clean, count: n, guessesLeft: n + 1 };
   // Start turn timer when a clue is given
   if (room.game.turnTimer > 0) {

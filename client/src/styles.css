@@ -293,8 +293,8 @@ input {
   color: #fff;
 }
 .card.revealed.neutral {
-  background: var(--neutral);
-  color: #2a2a2a;
+  background: #9e9478;
+  color: #1a1a1d;
 }
 .card.revealed.assassin {
   background: var(--assassin);
