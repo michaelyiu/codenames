@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Codenames</title>
+    <script>
+      // GitHub Pages SPA redirect: preserves the path for client-side routing.
+      // Converts /codenames/room/ABCD into /codenames/?p=/room/ABCD so index.html
+      // can pick it up and restore the correct route.
+      var base = "/codenames";
+      var path = location.pathname.slice(base.length);
+      var search = location.search;
+      location.replace(
+        base +
+          "/?p=" +
+          encodeURIComponent(path) +
+          (search ? "&" + search.slice(1) : ""),
+      );
+    </script>
+  </head>
+  <body></body>
+</html>
