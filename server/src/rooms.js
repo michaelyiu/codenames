@@ -6,6 +6,10 @@ const codeGen = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 4);
 /** @type {Map<string, Room>} */
 const rooms = new Map();
 
+export function getAllRooms() {
+  return rooms;
+}
+
 /** Find the room a player is currently in (if any). */
 export function findPlayerRoom(playerId) {
   for (const room of rooms.values()) {
@@ -25,6 +29,10 @@ export function createRoom(hostPlayerId, hostName) {
     hostId: hostPlayerId, // stable playerId
     players: {}, // playerId -> { id, name, team, role, connected }
     phase: "lobby", // 'lobby' | 'playing' | 'ended'
+    settings: {
+      boardSize: 5, // 3, 4, 5, or 6
+      turnTimer: 60, // seconds: 20, 30, 60, 90, or 0 (no limit)
+    },
     game: null,
     log: [],
   };
@@ -112,6 +120,25 @@ export function setTeam(room, playerId, team) {
   if (team === null) p.role = "operative";
 }
 
+export function setSettings(room, playerId, settings) {
+  if (room.phase !== "lobby")
+    return { error: "Can't change settings mid-game" };
+  if (room.hostId !== playerId)
+    return { error: "Only the host can change settings" };
+  if (settings.boardSize !== undefined) {
+    const valid = [3, 4, 5, 6];
+    if (!valid.includes(settings.boardSize))
+      return { error: "Invalid board size" };
+    room.settings.boardSize = settings.boardSize;
+  }
+  if (settings.turnTimer !== undefined) {
+    const valid = [0, 20, 30, 60, 90];
+    if (!valid.includes(settings.turnTimer)) return { error: "Invalid timer" };
+    room.settings.turnTimer = settings.turnTimer;
+  }
+  return { ok: true };
+}
+
 export function randomizeTeams(room) {
   if (room.phase !== "lobby") return;
   const ids = Object.keys(room.players);
@@ -151,14 +178,17 @@ export function startGame(room) {
     return { error: "Each team needs a spymaster" };
   }
 
-  const words = pickWords(25);
+  const size = room.settings.boardSize;
+  const totalCards = size * size;
+  const words = pickWords(totalCards);
   const startingTeam = Math.random() < 0.5 ? "red" : "blue";
-  const key = buildKey(startingTeam);
+  const key = buildKey(startingTeam, totalCards);
 
   room.game = {
+    boardSize: size,
     words,
     key,
-    revealed: Array(25).fill(false),
+    revealed: Array(totalCards).fill(false),
     startingTeam,
     turn: startingTeam,
     clue: null, // { word, count, guessesLeft }
@@ -169,6 +199,9 @@ export function startGame(room) {
     },
     // playerId -> card index they have tentatively selected (this turn only)
     selections: {},
+    // Timer
+    turnTimer: room.settings.turnTimer,
+    turnDeadline: null, // epoch ms when the turn expires (null = no limit)
   };
   room.log = [{ type: "start", startingTeam }];
   room.phase = "playing";
@@ -189,6 +222,10 @@ export function giveClue(room, playerId, word, count) {
   const n = Math.max(0, Math.min(9, parseInt(count, 10) || 0));
   if (!clean) return { error: "Clue word required" };
   room.game.clue = { word: clean, count: n, guessesLeft: n + 1 };
+  // Start turn timer when a clue is given
+  if (room.game.turnTimer > 0) {
+    room.game.turnDeadline = Date.now() + room.game.turnTimer * 1000;
+  }
   room.log.push({ type: "clue", team: p.team, word: clean, count: n });
   return { ok: true };
 }
@@ -202,7 +239,7 @@ export function revealCard(room, playerId, index) {
   if (p.role !== "operative" || p.team !== g.turn) {
     return { error: "Not your turn to guess" };
   }
-  if (index < 0 || index >= 25 || g.revealed[index]) {
+  if (index < 0 || index >= g.words.length || g.revealed[index]) {
     return { error: "Invalid card" };
   }
   // Must have selected this card first (two-step confirm)
@@ -262,7 +299,16 @@ function endTurnInternal(room) {
   g.turn = otherTeam(g.turn);
   g.clue = null;
   g.selections = {};
+  g.turnDeadline = null;
   room.log.push({ type: "endTurn", nextTeam: g.turn });
+}
+
+/** Force end the current turn (used by the server timer). */
+export function forceEndTurn(room) {
+  if (room.phase !== "playing" || !room.game) return;
+  if (!room.game.clue) return; // timer only runs after a clue
+  room.log.push({ type: "timerExpired", team: room.game.turn });
+  endTurnInternal(room);
 }
 
 /** Toggle a tentative selection on a card. Same card again = deselect. */
@@ -279,7 +325,7 @@ export function selectCard(room, playerId, index) {
     delete g.selections[playerId];
     return { ok: true };
   }
-  if (index < 0 || index >= 25 || g.revealed[index]) {
+  if (index < 0 || index >= g.words.length || g.revealed[index]) {
     return { error: "Invalid card" };
   }
   if (g.selections[playerId] === index) {
@@ -378,9 +424,17 @@ export function viewState(room, playerId) {
     code: room.code,
     hostId: room.hostId,
     phase: room.phase,
+    settings: room.settings,
     youId: playerId,
     players: Object.values(room.players),
-    game,
+    game: game
+      ? {
+          ...game,
+          boardSize: room.game.boardSize,
+          turnTimer: room.game.turnTimer,
+          turnDeadline: room.game.turnDeadline,
+        }
+      : null,
     log: room.log.slice(-50),
   };
 }
@@ -401,14 +455,20 @@ function pickWords(n) {
   shuffle(pool);
   return pool.slice(0, n);
 }
-function buildKey(startingTeam) {
-  // 9 for starting team, 8 for other, 7 neutral, 1 assassin
+function buildKey(startingTeam, totalCards) {
+  // Scale card distribution based on board size
+  // Always 1 assassin; starter gets 1 more than the other team
+  const assassins = 1;
+  const remaining = totalCards - assassins;
+  // Roughly 1/3 each team + neutrals, starter gets +1
+  const starterCount = Math.ceil(remaining * 0.36);
+  const otherCount = starterCount - 1;
+  const neutralCount = totalCards - starterCount - otherCount - assassins;
+
   const key = [];
-  const startCount = 9;
-  const otherCount = 8;
-  for (let i = 0; i < startCount; i++) key.push(startingTeam);
+  for (let i = 0; i < starterCount; i++) key.push(startingTeam);
   for (let i = 0; i < otherCount; i++) key.push(otherTeam(startingTeam));
-  for (let i = 0; i < 7; i++) key.push("neutral");
+  for (let i = 0; i < neutralCount; i++) key.push("neutral");
   key.push("assassin");
   return shuffle(key);
 }

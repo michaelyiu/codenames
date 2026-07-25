@@ -20,6 +20,11 @@ export default function Lobby({ state }) {
   function randomizeSpymasters() {
     socket.emit("spymaster:randomize");
   }
+  function updateSetting(key, value) {
+    socket.emit("settings:update", { [key]: value }, (res) => {
+      if (res?.error) setError(res.error);
+    });
+  }
   function start() {
     setError("");
     socket.emit("game:start", null, (res) => {
@@ -57,6 +62,51 @@ export default function Lobby({ state }) {
             <strong>Unassigned:</strong>{" "}
             {unassigned.map((p) => p.name).join(", ")}
           </div>
+        )}
+      </div>
+
+      <div className="settings-panel">
+        <h3>Game Settings</h3>
+        <div className="setting-row">
+          <label>Board Size</label>
+          <div className="setting-options">
+            {[3, 4, 5, 6].map((s) => (
+              <button
+                key={s}
+                className={state.settings.boardSize === s ? "active" : ""}
+                onClick={() => updateSetting("boardSize", s)}
+                disabled={!isHost}
+              >
+                {s}×{s}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="setting-row">
+          <label>Turn Timer</label>
+          <div className="setting-options">
+            {[
+              { v: 20, l: "20s" },
+              { v: 30, l: "30s" },
+              { v: 60, l: "60s" },
+              { v: 90, l: "90s" },
+              { v: 0, l: "None" },
+            ].map(({ v, l }) => (
+              <button
+                key={v}
+                className={state.settings.turnTimer === v ? "active" : ""}
+                onClick={() => updateSetting("turnTimer", v)}
+                disabled={!isHost}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+        {!isHost && (
+          <p style={{ color: "var(--muted)", fontSize: 12, margin: "6px 0 0" }}>
+            Only the host can change settings.
+          </p>
         )}
       </div>
 

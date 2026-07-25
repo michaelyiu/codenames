@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { socket } from "../socket.js";
 
@@ -10,6 +10,25 @@ export default function Game({ state }) {
   const [clueWord, setClueWord] = useState("");
   const [clueCount, setClueCount] = useState(1);
   const [error, setError] = useState("");
+  const [timeLeft, setTimeLeft] = useState(null);
+
+  // Countdown timer synced to server deadline
+  useEffect(() => {
+    if (!g?.turnDeadline) {
+      setTimeLeft(null);
+      return;
+    }
+    function tick() {
+      const remaining = Math.max(
+        0,
+        Math.ceil((g.turnDeadline - Date.now()) / 1000),
+      );
+      setTimeLeft(remaining);
+    }
+    tick();
+    const id = setInterval(tick, 250);
+    return () => clearInterval(id);
+  }, [g?.turnDeadline]);
 
   if (!g || !me) return null;
 
@@ -69,7 +88,12 @@ export default function Game({ state }) {
         </div>
       )}
       <div className="board-wrap">
-        <div className="board">
+        <div
+          className="board"
+          style={{
+            gridTemplateColumns: `repeat(${g.boardSize || 5}, minmax(0, 1fr))`,
+          }}
+        >
           {g.words.map((w, i) => {
             const selectedBy = (g.selections || []).filter(
               (s) => s.index === i,
@@ -104,6 +128,12 @@ export default function Game({ state }) {
             <div className={`turn-banner ${g.turn}`}>
               {g.turn.toUpperCase()}'s turn —{" "}
               {g.clue ? "guessing" : "spymaster gives a clue"}
+              {timeLeft !== null && (
+                <span className={`timer${timeLeft <= 10 ? " timer-low" : ""}`}>
+                  {" "}
+                  ⏱ {timeLeft}s
+                </span>
+              )}
             </div>
           )}
 
@@ -323,6 +353,8 @@ function formatLog(e) {
       return `${e.team.toUpperCase()} revealed ${e.word} → ${e.color}`;
     case "endTurn":
       return `Turn passed to ${e.nextTeam.toUpperCase()}`;
+    case "timerExpired":
+      return `${e.team.toUpperCase()}'s time ran out!`;
     default:
       return JSON.stringify(e);
   }

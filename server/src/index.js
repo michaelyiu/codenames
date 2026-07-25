@@ -11,6 +11,7 @@ import {
   removePlayer,
   deleteRoomIfEmpty,
   setTeam,
+  setSettings,
   randomizeTeams,
   randomizeSpymasters,
   startGame,
@@ -22,6 +23,8 @@ import {
   selectCard,
   devCreateSoloRoom,
   devSetMe,
+  forceEndTurn,
+  getAllRooms,
 } from "./rooms.js";
 
 const PORT = process.env.PORT || 3001;
@@ -190,6 +193,15 @@ io.on("connection", (socket) => {
     broadcast(room);
   });
 
+  socket.on("settings:update", ({ boardSize, turnTimer }, ack) => {
+    const { room, playerId: pid } = ctx(socket);
+    if (!room) return ack && ack({ error: "No room" });
+    const r = setSettings(room, pid, { boardSize, turnTimer });
+    if (r.error) return ack && ack(r);
+    ack && ack({ ok: true });
+    broadcast(room);
+  });
+
   socket.on("spymaster:randomize", () => {
     const { room } = ctx(socket);
     if (!room) return;
@@ -296,3 +308,18 @@ io.on("connection", (socket) => {
 server.listen(PORT, () => {
   console.log(`[codenames-server] listening on :${PORT}`);
 });
+
+// Timer tick: every second, check all active rooms for expired turn deadlines.
+setInterval(() => {
+  const now = Date.now();
+  for (const room of getAllRooms().values()) {
+    if (
+      room.phase === "playing" &&
+      room.game?.turnDeadline &&
+      now >= room.game.turnDeadline
+    ) {
+      forceEndTurn(room);
+      broadcast(room);
+    }
+  }
+}, 1000);
