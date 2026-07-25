@@ -111,13 +111,24 @@ export function removePlayer(room, playerId) {
   if (room.game?.selections) delete room.game.selections[playerId];
 }
 
-export function setTeam(room, playerId, team) {
+export function setTeam(room, playerId, team, role) {
+  if (room.phase !== "lobby") return { error: "Can't change teams mid-game" };
   const p = room.players[playerId];
-  if (!p) return;
-  if (team !== "red" && team !== "blue" && team !== null) return;
+  if (!p) return { error: "Player not found" };
+  if (team !== "red" && team !== "blue" && team !== null)
+    return { error: "Invalid team" };
+  const wantRole = role === "spymaster" ? "spymaster" : "operative";
+  // If joining as spymaster, check if the team already has one (someone else)
+  if (team && wantRole === "spymaster") {
+    const existing = Object.values(room.players).find(
+      (pl) => pl.team === team && pl.role === "spymaster" && pl.id !== playerId,
+    );
+    if (existing)
+      return { error: `${existing.name} is already ${team} spymaster` };
+  }
   p.team = team;
-  // If they leave a team mid-lobby, drop spymaster role
-  if (team === null) p.role = "operative";
+  p.role = team === null ? "operative" : wantRole;
+  return { ok: true };
 }
 
 export function setSettings(room, playerId, settings) {
@@ -161,6 +172,38 @@ export function randomizeSpymasters(room) {
     const pick = teamPlayers[Math.floor(Math.random() * teamPlayers.length)];
     pick.role = "spymaster";
   }
+}
+
+/** Host assigns a player as spymaster for their team. */
+export function setSpymaster(room, hostId, targetId) {
+  if (room.phase !== "lobby") return { error: "Can't change roles mid-game" };
+  if (room.hostId !== hostId)
+    return { error: "Only the host can assign spymasters" };
+  const target = room.players[targetId];
+  if (!target) return { error: "Player not found" };
+  if (!target.team) return { error: "Player must be on a team" };
+  // Remove existing spymaster on that team
+  for (const p of Object.values(room.players)) {
+    if (p.team === target.team && p.role === "spymaster") p.role = "operative";
+  }
+  target.role = "spymaster";
+  return { ok: true };
+}
+
+/** Player volunteers as spymaster for their team (limit 1 per team). */
+export function claimSpymaster(room, playerId) {
+  if (room.phase !== "lobby") return { error: "Can't change roles mid-game" };
+  const p = room.players[playerId];
+  if (!p) return { error: "Player not found" };
+  if (!p.team) return { error: "Join a team first" };
+  // Check if the team already has a spymaster (someone else)
+  const existing = Object.values(room.players).find(
+    (pl) => pl.team === p.team && pl.role === "spymaster" && pl.id !== playerId,
+  );
+  if (existing) return { error: `${existing.name} is already spymaster` };
+  // Toggle: if already spymaster, step down
+  p.role = p.role === "spymaster" ? "operative" : "spymaster";
+  return { ok: true };
 }
 
 export function startGame(room) {

@@ -14,6 +14,8 @@ import {
   setSettings,
   randomizeTeams,
   randomizeSpymasters,
+  setSpymaster,
+  claimSpymaster,
   startGame,
   giveClue,
   revealCard,
@@ -178,10 +180,12 @@ io.on("connection", (socket) => {
     if (!deleteRoomIfEmpty(room)) broadcast(room);
   });
 
-  socket.on("team:choose", ({ team }) => {
+  socket.on("team:choose", ({ team, role }, ack) => {
     const { room, playerId: pid } = ctx(socket);
-    if (!room) return;
-    setTeam(room, pid, team);
+    if (!room) return ack && ack({ error: "No room" });
+    const r = setTeam(room, pid, team, role);
+    if (r?.error) return ack && ack(r);
+    ack && ack({ ok: true });
     broadcast(room);
   });
 
@@ -205,6 +209,24 @@ io.on("connection", (socket) => {
     const { room } = ctx(socket);
     if (!room) return;
     randomizeSpymasters(room);
+    broadcast(room);
+  });
+
+  socket.on("spymaster:assign", ({ targetId }, ack) => {
+    const { room, playerId: pid } = ctx(socket);
+    if (!room) return ack && ack({ error: "No room" });
+    const r = setSpymaster(room, pid, targetId);
+    if (r.error) return ack && ack(r);
+    ack && ack({ ok: true });
+    broadcast(room);
+  });
+
+  socket.on("spymaster:claim", (_p, ack) => {
+    const { room, playerId: pid } = ctx(socket);
+    if (!room) return ack && ack({ error: "No room" });
+    const r = claimSpymaster(room, pid);
+    if (r.error) return ack && ack(r);
+    ack && ack({ ok: true });
     broadcast(room);
   });
 

@@ -5,20 +5,28 @@ export default function Lobby({ state }) {
   const [error, setError] = useState("");
   const me = state.players.find((p) => p.id === state.youId);
   const isHost = state.hostId === state.youId;
+  const settings = state.settings || { boardSize: 5, turnTimer: 60 };
 
   const red = state.players.filter((p) => p.team === "red");
   const blue = state.players.filter((p) => p.team === "blue");
   const unassigned = state.players.filter((p) => !p.team);
 
-  function choose(team) {
+  function choose(team, role) {
     setError("");
-    socket.emit("team:choose", { team });
+    socket.emit("team:choose", { team, role }, (res) => {
+      if (res?.error) setError(res.error);
+    });
   }
   function randomizeTeams() {
     socket.emit("team:randomize");
   }
   function randomizeSpymasters() {
     socket.emit("spymaster:randomize");
+  }
+  function assignSpymaster(targetId) {
+    socket.emit("spymaster:assign", { targetId }, (res) => {
+      if (res?.error) setError(res.error);
+    });
   }
   function updateSetting(key, value) {
     socket.emit("settings:update", { [key]: value }, (res) => {
@@ -46,16 +54,20 @@ export default function Lobby({ state }) {
           title="Red Team"
           players={red}
           youId={state.youId}
-          onJoin={() => choose("red")}
+          onJoin={(role) => choose("red", role)}
           inTeam={me?.team === "red"}
+          isHost={isHost}
+          onAssignSpymaster={assignSpymaster}
         />
         <TeamPanel
           color="blue"
           title="Blue Team"
           players={blue}
           youId={state.youId}
-          onJoin={() => choose("blue")}
+          onJoin={(role) => choose("blue", role)}
           inTeam={me?.team === "blue"}
+          isHost={isHost}
+          onAssignSpymaster={assignSpymaster}
         />
         {unassigned.length > 0 && (
           <div className="unassigned">
@@ -134,7 +146,18 @@ export default function Lobby({ state }) {
   );
 }
 
-function TeamPanel({ color, title, players, youId, onJoin, inTeam }) {
+function TeamPanel({
+  color,
+  title,
+  players,
+  youId,
+  onJoin,
+  inTeam,
+  isHost,
+  onAssignSpymaster,
+}) {
+  const hasSpymaster = players.some((p) => p.role === "spymaster");
+
   return (
     <div className={`team ${color}`}>
       <h3>
@@ -147,8 +170,18 @@ function TeamPanel({ color, title, players, youId, onJoin, inTeam }) {
               {p.name}
               {p.id === youId && " (you)"}
             </span>
-            {p.role === "spymaster" && (
+            {p.role === "spymaster" ? (
               <span className="role-badge">Spymaster</span>
+            ) : (
+              isHost && (
+                <button
+                  className="assign-btn"
+                  onClick={() => onAssignSpymaster(p.id)}
+                  title="Assign as spymaster"
+                >
+                  🕵️
+                </button>
+              )
             )}
           </li>
         ))}
@@ -157,9 +190,18 @@ function TeamPanel({ color, title, players, youId, onJoin, inTeam }) {
         )}
       </ul>
       {!inTeam && (
-        <button className={color} onClick={onJoin} style={{ marginTop: 12 }}>
-          Join {color}
-        </button>
+        <div className="team-actions">
+          <button className={color} onClick={() => onJoin("operative")}>
+            Join {color}
+          </button>
+          <button
+            className={`${color} spy-join`}
+            onClick={() => onJoin("spymaster")}
+            disabled={hasSpymaster}
+          >
+            Join as Spymaster{hasSpymaster ? " (taken)" : ""}
+          </button>
+        </div>
       )}
     </div>
   );
