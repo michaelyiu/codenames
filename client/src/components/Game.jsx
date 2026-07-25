@@ -92,35 +92,74 @@ export default function Game({ state }) {
           {g.winner.toUpperCase()} TEAM WINS!
         </div>
       )}
+
+      {!g.winner && (
+        <div className={`turn-banner ${g.turn}${isMyTurn ? " my-turn" : ""}`}>
+          <span className="turn-text">
+            {isMyTurn
+              ? "YOUR TEAM'S TURN"
+              : `${g.turn.toUpperCase()} TEAM'S TURN`}
+          </span>
+          {timeLeft !== null && (
+            <span className={`timer${timeLeft <= 10 ? " timer-low" : ""}`}>
+              ⏱ {timeLeft}s
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="board-wrap">
-        <div
-          className="board"
-          style={{
-            gridTemplateColumns: `repeat(${g.boardSize || 5}, minmax(0, 1fr))`,
-          }}
-        >
-          {g.words.map((w, i) => {
-            const selectedBy = (g.selections || []).filter(
-              (s) => s.index === i,
-            );
-            const mySelectionIndex = (g.selections || []).find(
-              (s) => s.playerId === state.youId,
-            )?.index;
-            return (
-              <Card
-                key={i}
-                word={w}
-                revealed={g.revealed[i]}
-                color={g.key[i]}
-                isSpymasterView={isSpymaster}
-                clickable={canGuess && !g.revealed[i]}
-                selectedBy={selectedBy}
-                isMySelection={mySelectionIndex === i}
-                turnTeam={g.turn}
-                onClick={() => selectCard(i)}
-              />
-            );
-          })}
+        <div className="board-col">
+          <div
+            className="board"
+            style={{
+              gridTemplateColumns: `repeat(${g.boardSize || 5}, minmax(0, 1fr))`,
+            }}
+          >
+            {g.words.map((w, i) => {
+              const selectedBy = (g.selections || []).filter(
+                (s) => s.index === i,
+              );
+              const mySelectionIndex = (g.selections || []).find(
+                (s) => s.playerId === state.youId,
+              )?.index;
+              return (
+                <Card
+                  key={i}
+                  word={w}
+                  revealed={g.revealed[i]}
+                  color={g.key[i]}
+                  isSpymasterView={isSpymaster}
+                  clickable={canGuess && !g.revealed[i]}
+                  selectedBy={selectedBy}
+                  isMySelection={mySelectionIndex === i}
+                  turnTeam={g.turn}
+                  onClick={() => selectCard(i)}
+                />
+              );
+            })}
+          </div>
+
+          <div className={`clue-banner ${g.turn}`}>
+            {g.clue ? (
+              <>
+                <span className="clue-word">{g.clue.word.toUpperCase()}</span>
+                <span className="clue-count">{g.clue.count}</span>
+                <span className="clue-guesses">
+                  ({g.clue.guessesLeft} guess
+                  {g.clue.guessesLeft !== 1 ? "es" : ""} left)
+                </span>
+              </>
+            ) : (
+              <span className="clue-status">
+                {isMyTurn
+                  ? isSpymaster
+                    ? "Give a clue"
+                    : "Waiting for spymaster's clue"
+                  : g.turn.toUpperCase() + " spymaster is thinking"}
+              </span>
+            )}
+          </div>
         </div>
 
         <aside className="sidebar">
@@ -128,33 +167,6 @@ export default function Game({ state }) {
             <span className="red">Red: {g.remaining.red}</span>
             <span className="blue">Blue: {g.remaining.blue}</span>
           </div>
-
-          {!g.winner && (
-            <div className={`turn-banner ${g.turn}`}>
-              {g.turn.toUpperCase()}'s turn —{" "}
-              {g.clue ? "guessing" : "spymaster gives a clue"}
-              {timeLeft !== null && (
-                <span className={`timer${timeLeft <= 10 ? " timer-low" : ""}`}>
-                  {" "}
-                  ⏱ {timeLeft}s
-                </span>
-              )}
-            </div>
-          )}
-
-          {g.clue && (
-            <div className="panel clue-display">
-              <div style={{ color: "var(--muted)", fontSize: 12 }}>Clue</div>
-              <strong>{g.clue.word.toUpperCase()}</strong> · {g.clue.count}
-              {!isSpymaster && (
-                <div
-                  style={{ color: "var(--muted)", fontSize: 12, marginTop: 6 }}
-                >
-                  Guesses left this turn: {g.clue.guessesLeft}
-                </div>
-              )}
-            </div>
-          )}
 
           {canGiveClue && (
             <form className="panel clue-form" onSubmit={submitClue}>
@@ -177,6 +189,8 @@ export default function Game({ state }) {
               </button>
             </form>
           )}
+
+          {error && <p className="error">{error}</p>}
 
           {canGuess && <button onClick={endTurn}>End turn</button>}
 
@@ -292,8 +306,6 @@ export default function Game({ state }) {
                 ))}
             </div>
           </div>
-
-          <p className="error">{error}</p>
         </aside>
       </div>
     </>

@@ -11,6 +11,7 @@ export default function Room() {
   const nav = useNavigate();
   const [state, setState] = useState(null);
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     function onState(s) {
@@ -60,14 +61,20 @@ export default function Room() {
     <div className="container">
       <div className="header">
         <h2>Codenames</h2>
-        <div>
-          Room <span className="code">{state.code}</span>{" "}
-          <button
-            onClick={() => navigator.clipboard?.writeText(window.location.href)}
-          >
-            Copy link
-          </button>
-        </div>
+        {state.phase === "lobby" && (
+          <div>
+            Room <span className="code">{state.code}</span>{" "}
+            <button
+              onClick={() => {
+                navigator.clipboard?.writeText(state.code);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+            >
+              {copied ? "Copied!" : "Copy code"}
+            </button>
+          </div>
+        )}
         {state.phase !== "playing" && (
           <button
             onClick={() => {

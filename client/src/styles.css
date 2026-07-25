@@ -258,6 +258,12 @@ input {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+.board-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
 
 .board {
   display: grid;
@@ -415,21 +421,92 @@ input {
   color: var(--blue);
 }
 .turn-banner {
-  padding: 10px;
-  border-radius: 8px;
+  padding: 14px 20px;
+  border-radius: 10px;
   text-align: center;
   font-weight: 700;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.turn-banner .turn-text {
+  font-size: 20px;
 }
 .turn-banner.red {
   background: var(--red-2);
+  border: 2px solid var(--red);
 }
 .turn-banner.blue {
   background: var(--blue-2);
+  border: 2px solid var(--blue);
 }
-.clue-display {
-  font-size: 20px;
+.turn-banner.my-turn {
+  animation: turn-glow 2s ease-in-out infinite;
+}
+.turn-banner.my-turn.red {
+  box-shadow:
+    0 0 30px rgba(231, 76, 60, 0.6),
+    0 0 60px rgba(231, 76, 60, 0.25);
+}
+.turn-banner.my-turn.blue {
+  box-shadow:
+    0 0 30px rgba(52, 152, 219, 0.6),
+    0 0 60px rgba(52, 152, 219, 0.25);
+}
+@keyframes turn-glow {
+  0%,
+  100% {
+    opacity: 1;
+    filter: brightness(1);
+  }
+  50% {
+    opacity: 0.9;
+    filter: brightness(1.1);
+  }
+}
+
+.clue-banner {
+  padding: 12px 20px;
+  border-radius: 8px;
   text-align: center;
-  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 16px;
+  height: 56px;
+}
+.clue-banner.red {
+  background: var(--red-2);
+  border: 1px solid var(--red);
+}
+.clue-banner.blue {
+  background: var(--blue-2);
+  border: 1px solid var(--blue);
+}
+.clue-banner .clue-word {
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: 1px;
+}
+.clue-banner .clue-count {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 2px 10px;
+  border-radius: 6px;
+  font-weight: 700;
+}
+.clue-banner .clue-guesses {
+  font-size: 13px;
+  opacity: 0.7;
+  font-weight: 400;
+}
+.clue-banner .clue-status {
+  font-weight: 500;
+  opacity: 0.8;
+  font-style: italic;
 }
 .clue-form {
   display: flex;
